@@ -13,9 +13,9 @@ class Board:
         win.fill(BLACK)
         for row in range(ROWS):
             for col in range(row % 2, COLS, 2):
-                rect = (row*SQUARE_SIZE, col *SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
+                rect = (row * SQUARE_SIZE, col * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
                 if (row, col) in HOLES:
-                    pygame.draw.rect(win, (100, 100, 100), rect)  # Dark gray color for holes
+                    pygame.draw.rect(win, (100, 100, 100), rect)  # Dark gray for holes
                 else:
                     pygame.draw.rect(win, RED, rect)
 
@@ -23,7 +23,6 @@ class Board:
         score = self.white_left - self.red_left
         score += 0.5 * (self.white_kings - self.red_kings)
 
-        # Small penalty for being close to holes
         for row in range(ROWS):
             for col in range(COLS):
                 piece = self.board[row][col]
@@ -36,7 +35,6 @@ class Board:
                             else:
                                 score += 0.1
 
-        # Bonus if Boost is still available
         if boost_available:
             if boost_available["WHITE"]:
                 score += 0.2
@@ -46,23 +44,17 @@ class Board:
         return score
 
     def get_all_pieces(self, color):
-        pieces = []
-        for row in self.board:
-            for piece in row:
-                if piece != 0 and piece is not None and piece.color == color:
-                    pieces.append(piece)
-        return pieces
+        return [piece for row in self.board for piece in row if piece != 0 and piece is not None and piece.color == color]
 
     def move(self, piece, row, col):
         self.board[piece.row][piece.col], self.board[row][col] = self.board[row][col], self.board[piece.row][piece.col]
         piece.move(row, col)
-
-        if row == ROWS - 1 or row == 0:
+        if row == 0 or row == ROWS - 1:
             piece.make_king()
             if piece.color == WHITE:
                 self.white_kings += 1
             else:
-                self.red_kings += 1 
+                self.red_kings += 1
 
     def get_piece(self, row, col):
         if (row, col) in HOLES:
@@ -74,8 +66,8 @@ class Board:
             self.board.append([])
             for col in range(COLS):
                 if (row, col) in HOLES:
-                    self.board[row].append(None)  # None = hole
-                elif col % 2 == ((row +  1) % 2):
+                    self.board[row].append(None)
+                elif col % 2 == ((row + 1) % 2):
                     if row < 3:
                         self.board[row].append(Piece(row, col, WHITE))
                     elif row > 4:
@@ -84,7 +76,7 @@ class Board:
                         self.board[row].append(0)
                 else:
                     self.board[row].append(0)
-        
+
     def draw(self, win):
         self.draw_squares(win)
         for row in range(ROWS):
@@ -101,33 +93,30 @@ class Board:
                     self.red_left -= 1
                 else:
                     self.white_left -= 1
-    
+
     def winner(self):
         if self.red_left <= 0:
             return WHITE
         elif self.white_left <= 0:
             return RED
-        
-        return None 
-    
+        return None
+
     def get_valid_boost_moves(self, piece):
         moves = {}
         if piece is None:
             return moves
         directions = []
         if piece.color == RED or piece.king:
-            directions.append((-2, -2))
-            directions.append((-2, 2))
+            directions += [(-2, -2), (-2, 2)]
         if piece.color == WHITE or piece.king:
-            directions.append((2, -2))
-            directions.append((2, 2))
+            directions += [(2, -2), (2, 2)]
         for dr, dc in directions:
             r, c = piece.row + dr, piece.col + dc
             if 0 <= r < ROWS and 0 <= c < COLS and (r, c) not in HOLES and self.board[r][c] == 0:
                 moves[(r, c)] = []
         return moves
 
-    def get_valid_moves(self, piece, allow_boost=False):
+    def get_valid_moves(self, piece, allow_boost=False, boost_used=False):
         moves = {}
         if piece is None:
             return moves
@@ -139,16 +128,15 @@ class Board:
             return 0 <= r < ROWS and 0 <= c < COLS and (r, c) not in HOLES and self.board[r][c] == 0
 
         if piece.color == RED or piece.king:
-            moves.update(self._traverse_left(row -1, max(row-3, -1), -1, piece.color, left))
-            moves.update(self._traverse_right(row -1, max(row-3, -1), -1, piece.color, right))
+            moves.update(self._traverse_left(row - 1, max(row - 3, -1), -1, piece.color, left))
+            moves.update(self._traverse_right(row - 1, max(row - 3, -1), -1, piece.color, right))
         if piece.color == WHITE or piece.king:
-            moves.update(self._traverse_left(row +1, min(row+3, ROWS), 1, piece.color, left))
-            moves.update(self._traverse_right(row +1, min(row+3, ROWS), 1, piece.color, right))
+            moves.update(self._traverse_left(row + 1, min(row + 3, ROWS), 1, piece.color, left))
+            moves.update(self._traverse_right(row + 1, min(row + 3, ROWS), 1, piece.color, right))
 
-        # Filter only moves that don't land on holes
         moves = {move: skipped for move, skipped in moves.items() if is_valid_dest(*move)}
 
-        if allow_boost:
+        if allow_boost and not boost_used:
             moves.update(self.get_valid_boost_moves(piece))
         return moves
 
@@ -159,7 +147,7 @@ class Board:
             if left < 0:
                 break
             current = self.board[r][left]
-            if current == 0 or current is None:  # Allow passing through holes
+            if current == 0 or current is None:
                 if skipped and not last:
                     break
                 elif skipped:
@@ -167,17 +155,13 @@ class Board:
                 else:
                     moves[(r, left)] = last
                 if last:
-                    # Check: Is there a hole between your piece and the opponent's piece? If yes, don't allow jump
                     prev_r = r - step
                     prev_c = left + 1 if step == -1 else left - 1
                     if 0 <= prev_r < ROWS and 0 <= prev_c < COLS and self.board[prev_r][prev_c] is None:
                         break
-                    if step == -1:
-                        row = max(r-3, 0)
-                    else:
-                        row = min(r+3, ROWS)
-                    moves.update(self._traverse_left(r+step, row, step, color, left-1,skipped=last))
-                    moves.update(self._traverse_right(r+step, row, step, color, left+1,skipped=last))
+                    next_row = max(r - 3, 0) if step == -1 else min(r + 3, ROWS)
+                    moves.update(self._traverse_left(r + step, next_row, step, color, left - 1, skipped=last))
+                    moves.update(self._traverse_right(r + step, next_row, step, color, left + 1, skipped=last))
                 break
             elif isinstance(current, Piece) and current.color == color:
                 break
@@ -193,25 +177,21 @@ class Board:
             if right >= COLS:
                 break
             current = self.board[r][right]
-            if current == 0 or current is None:  # Allow passing through holes
+            if current == 0 or current is None:
                 if skipped and not last:
                     break
                 elif skipped:
-                    moves[(r,right)] = last + skipped
+                    moves[(r, right)] = last + skipped
                 else:
                     moves[(r, right)] = last
                 if last:
-                    # Check: Is there a hole between your piece and the opponent's piece? If yes, don't allow jump
                     prev_r = r - step
                     prev_c = right - 1 if step == -1 else right + 1
                     if 0 <= prev_r < ROWS and 0 <= prev_c < COLS and self.board[prev_r][prev_c] is None:
                         break
-                    if step == -1:
-                        row = max(r-3, 0)
-                    else:
-                        row = min(r+3, ROWS)
-                    moves.update(self._traverse_left(r+step, row, step, color, right-1,skipped=last))
-                    moves.update(self._traverse_right(r+step, row, step, color, right+1,skipped=last))
+                    next_row = max(r - 3, 0) if step == -1 else min(r + 3, ROWS)
+                    moves.update(self._traverse_left(r + step, next_row, step, color, right - 1, skipped=last))
+                    moves.update(self._traverse_right(r + step, next_row, step, color, right + 1, skipped=last))
                 break
             elif isinstance(current, Piece) and current.color == color:
                 break
