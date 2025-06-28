@@ -85,7 +85,8 @@ class Game:
                 return True
 
             self.just_got_king = not was_king and self.selected.king
-
+            if self.just_got_king:
+                self.twice_pending[self.turn] = True
             if not self.twice_pending[self.turn]:
                 self.change_turn()
             else:
@@ -119,6 +120,7 @@ class Game:
         if getattr(board, 'last_boost_used', False):
             self.boost_used[WHITE] = True
             self.boost_just_used[WHITE] = True
+            board.last_boost_used = False
         else:
             self.boost_just_used[WHITE] = False
 
@@ -134,4 +136,11 @@ class Game:
             for (r_new, c_new) in new_pieces:
                 if abs(r_new - r_old) == 2 and abs(c_new - c_old) == 2:
                     return True
+        return False
+    def has_valid_moves(self, color):
+        pieces = self.board.get_all_pieces(color)
+        for piece in pieces:
+            moves = self.board.get_valid_moves(piece, allow_boost=not self.boost_used[color], boost_used=self.boost_used[color])
+            if moves:
+                return True
         return False

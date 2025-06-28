@@ -16,4 +16,4 @@ GREY = (128, 128, 128)
 CROWN = pygame.transform.scale(pygame.image.load('assets/crown.png'), (44, 25))
 
 # Holes (obstacles)
-HOLES = [(3, 3), (4, 4)]
+HOLES = [(3, 2), (4, 3)]

@@ -54,14 +54,19 @@ def main():
     clock = pygame.time.Clock()
     game = Game(WIN)
     boost_mode = False
+    boost_button_visible = True
+    ai_boost_alert_shown = False
 
     while run:
         clock.tick(FPS)
 
         if game.turn == WHITE:
             value, new_board = minimax(game.get_board(), 2, WHITE, game)
-            new_board.last_boost_used = game.detect_ai_boost(game.get_board(), new_board)
-            game.ai_move(new_board)
+            if new_board:
+                new_board.last_boost_used = game.detect_ai_boost(game.get_board(), new_board)
+                game.ai_move(new_board)
+            else:
+                continue
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -70,8 +75,9 @@ def main():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
 
-                if BOOST_BTN.collidepoint(pos) and not game.boost_used[RED] and game.turn == RED:
+                if BOOST_BTN.collidepoint(pos) and boost_button_visible and not game.boost_used[RED] and game.turn == RED:
                     boost_mode = True
+                    boost_button_visible = False
                     draw_message(WIN, "Boost mode activated!")
 
                 else:
@@ -80,30 +86,46 @@ def main():
 
                     if game.turn == RED:
                         game.select(row, col, boost_mode, use_twice)
-                        boost_mode = False  # תמיד מכבים Boost אחרי לחיצה
+                        boost_mode = False
 
         game.update()
 
-        # Draw Boost button only if RED player can use it
-        if game.turn == RED and not game.boost_used[RED]:
+        if game.turn == RED and not game.boost_used[RED] and boost_button_visible:
             draw_boost_button(WIN, game)
 
         # Game messages
         if game.boost_just_used[RED]:
             draw_message(WIN, "Boost used!")
-        elif game.boost_just_used[WHITE]:
+
+        elif game.boost_just_used[WHITE] and not ai_boost_alert_shown:
             messagebox.showinfo("AI Boost", "AI used Boost!")
-            game.boost_just_used[WHITE] = False 
+            game.boost_just_used[WHITE] = False
+            ai_boost_alert_shown = True
+
         elif game.twice_pending[RED]:
             messagebox.showinfo("Twice Turn", "You get another turn (Twice)!")
         elif game.twice_pending[WHITE]:
             draw_message(WIN, "AI gets another turn (Twice)!")
         elif game.just_got_king:
-            draw_message(WIN, "King crowned!")
+            messagebox.showinfo("King crowned!", "King crowned!")
+            game.just_got_king = False
+        if game.turn == RED and not game.has_valid_moves(RED):
+            draw_message(WIN, "No valid moves left. WHITE wins!")
+            pygame.display.update()
+            pygame.time.wait(2000)
+            messagebox.showinfo("Game Over", "No valid moves for RED. WHITE wins!")
+            run = False
+        elif game.turn == WHITE and not game.has_valid_moves(WHITE):
+            draw_message(WIN, "No valid moves left. RED wins!")
+            pygame.display.update()
+            pygame.time.wait(2000)
+            messagebox.showinfo("Game Over", "No valid moves for WHITE. RED wins!")
+            run = False
 
         winner = game.winner()
         if winner is not None:
             draw_winner(WIN, winner)
+            messagebox.showinfo("Game Over", f"{'RED' if winner == RED else 'WHITE'} wins!")
             run = False
 
         pygame.display.update()

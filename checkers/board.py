@@ -13,11 +13,11 @@ class Board:
         win.fill(BLACK)
         for row in range(ROWS):
             for col in range(row % 2, COLS, 2):
-                rect = (row * SQUARE_SIZE, col * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
-                if (row, col) in HOLES:
-                    pygame.draw.rect(win, (100, 100, 100), rect)  # Dark gray for holes
-                else:
-                    pygame.draw.rect(win, RED, rect)
+                pygame.draw.rect(win, RED, (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
+
+        # צביעת החורים לאחר ציור הלוח
+        for row, col in HOLES:
+            pygame.draw.rect(win, (100, 100, 100), (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
 
     def evaluate(self, boost_available=None):
         score = self.white_left - self.red_left
